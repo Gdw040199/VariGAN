@@ -8,7 +8,8 @@
 - You can refer to `requirements.txt` for specific versions used in this project
 
 ---
-
+![image]([https://github.com](https://github.com/Gdw040199/VariGAN/blob/main/image/1.png))
+![image]([https://github.com](https://github.com/Gdw040199/VariGAN/blob/main/image/2.png))
 # Configuration Procedure
 
 ## 1. Clone Project
