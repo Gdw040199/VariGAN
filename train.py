@@ -17,7 +17,7 @@ from torch.autograd import Variable
 from PIL import Image
 from torchvision.utils import save_image, make_grid
 import lpips
-from models import Generator, Discriminator, weights_init_normal
+from models import Generator, Discriminator
 from utils import ReplayBuffer, LambdaLR
 from datasets import ImageDataset
 
@@ -27,14 +27,14 @@ from datasets import ImageDataset
 # Hyperparameter configuration
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
-parser.add_argument("--n_epochs", type=int, default=1, help="number of epochs of training")
-parser.add_argument("--dataset_name", type=str, default="dataset/horse2zebra",
+parser.add_argument("--n_epochs", type=int, default=100, help="number of epochs of training")
+parser.add_argument("--dataset_name", type=str, default="dataset/facades",
                     help="name of the dataset")
 parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0003, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
-parser.add_argument("--decay_epoch", type=int, default=0, help="epoch from which to start lr decay")
+parser.add_argument("--decay_epoch", type=int, default=50, help="epoch from which to start lr decay")
 parser.add_argument("--n_cpu", type=int, default=2, help="number of cpu threads to use during batch generation")
 parser.add_argument("--img_height", type=int, default=256, help="size of image height")
 parser.add_argument("--img_width", type=int, default=256, help="size of image width")
@@ -85,12 +85,7 @@ if opt.epoch != 0:
     G_BA.load_state_dict(torch.load("save/%s/G_BA_%d.pth" % (opt.dataset_name, opt.epoch)))
     D_A.load_state_dict(torch.load("save/%s/D_A_%d.pth" % (opt.dataset_name, opt.epoch)))
     D_B.load_state_dict(torch.load("save/%s/D_B_%d.pth" % (opt.dataset_name, opt.epoch)))
-else:
-    # Initialize model parameters
-    G_AB.apply(weights_init_normal)
-    G_BA.apply(weights_init_normal)
-    D_A.apply(weights_init_normal)
-    D_B.apply(weights_init_normal)
+
 
 # Define optimization function, learning rate is 0.0003
 optimizer_G = torch.optim.Adam(
@@ -125,7 +120,7 @@ transforms_ = [
 
 # Training data loader
 dataloader = DataLoader(  # Change to your own directory
-    ImageDataset("dataset/horse2zebra", transforms_=transforms_, unaligned=True),
+    ImageDataset("dataset/facades", transforms_=transforms_, unaligned=True),
     # "./datasets/facades" , unaligned: Set unaligned data
     batch_size=opt.batch_size,  # batch_size = 1
     shuffle=True,
@@ -133,7 +128,7 @@ dataloader = DataLoader(  # Change to your own directory
 )
 # Test data loader
 val_dataloader = DataLoader(
-    ImageDataset("dataset/horse2zebra", transforms_=transforms_, unaligned=True, mode="test"),  # "./datasets/facades"
+    ImageDataset("dataset/facades", transforms_=transforms_, unaligned=True, mode="test"),  # "./datasets/facades"
     batch_size=5,
     shuffle=True,
     num_workers=1,
