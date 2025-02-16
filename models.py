@@ -5,18 +5,6 @@ import torch.nn as nn
 #########################################################################
 ############################  models.py  ###################################
 
-## Define the parameter initialization function
-def weights_init_normal(m):
-    classname = m.__class__.__name__  ## m is a formal parameter that can theoretically pass many things. To enable multiple arguments, each module must provide its own name. This line returns the name of m.
-    if classname.find("Conv") != -1:  ## find(): Checks if "Conv" is in classname. Returns -1 if not found; otherwise, returns 0.
-        torch.nn.init.normal_(m.weight.data, 0.0,
-                              0.02)  ## m.weight.data represents the weights to be initialized. nn.init.normal_(): Random initialization using a normal distribution with mean 0 and standard deviation 0.02.
-        if hasattr(m, "bias") and m.bias is not None:  ## hasattr(): Checks if m contains the attribute "bias" and if it is not empty.
-            torch.nn.init.constant_(m.bias.data, 0.0)  ## nn.init.constant_(): Initializes the bias as a constant 0.
-    elif classname.find("BatchNorm2d") != -1:  ## find(): Checks if "BatchNorm2d" is in classname. Returns -1 if not found; otherwise, returns 0.
-        torch.nn.init.normal_(m.weight.data, 1.0,
-                              0.02)  ## m.weight.data represents the weights to be initialized. nn.init.normal_(): Random initialization using a normal distribution with mean 1.0 and standard deviation 0.02.
-        torch.nn.init.constant_(m.bias.data, 0.0)  ## nn.init.constant_(): Initializes the bias as a constant 0.
 
 ##############################
 ## Self-Attention Mechanism
@@ -33,7 +21,7 @@ class EfficientSelfAttention(nn.Module):
         self.value = nn.Conv2d(in_channels, in_channels, kernel_size=1)
 
         # Learnable scaling parameter
-        self.gamma = nn.Parameter(torch.zeros(1))
+        self.gamma = nn.Parameter(torch.ones(1)*0.05) #this can be initialized to 0 or a small positive value
 
     def forward(self, x):
         batch_size, C, height, width = x.size()
@@ -68,20 +56,54 @@ class EfficientSelfAttention(nn.Module):
 ##############################
 class ResidualBlock(nn.Module):
     def __init__(self, in_features):
-        super(ResidualBlock, self).__init__()
+        super().__init__()
+        self.in_features = in_features
 
-        self.block = nn.Sequential(  ## block = [pad + conv + norm + relu + pad + conv + norm]
-            nn.ReflectionPad2d(1),  ## ReflectionPad2d(): Pads the input tensor using the reflection of the input boundary
-            nn.Conv2d(in_features, in_features, 3),  ## Convolution
-            nn.InstanceNorm2d(in_features),  ## InstanceNorm2d(): Normalizes over HxW for each image, used in style transfer
-            nn.ReLU(inplace=True),  ## Non-linear activation
-            nn.ReflectionPad2d(1),  ## ReflectionPad2d(): Pads the input tensor using the reflection of the input boundary
-            nn.Conv2d(in_features, in_features, 3),  ## Convolution
-            nn.InstanceNorm2d(in_features),  ## InstanceNorm2d(): Normalizes over HxW for each image, used in style transfer
+        # The convolution layer that defines the branch
+        self.conv_Q = nn.Conv2d(in_features, in_features // 4, 1)  # Conv1(Q)
+        self.conv_K = nn.Conv2d(in_features, in_features // 4, 1)  # Conv1(K)
+        self.conv_V = nn.Conv2d(in_features, in_features // 4, 1)  # Conv1(V)
+
+        # Define the concatenated channel adjustment layer
+        self.conv_adapt = nn.Conv2d(3 * (in_features // 4), in_features // 4, 1)  # 调整通道数
+
+        # Define the final 3x3 convolution layer
+        self.conv_final = nn.Sequential(
+            nn.ReflectionPad2d(1),
+            nn.Conv2d(in_features // 2, in_features, 3),  # 输出通道恢复为 in_features
+            nn.InstanceNorm2d(in_features)
         )
 
-    def forward(self, x):  ## Input is an image
-        return x + self.block(x)  ## Output is the image plus the residual output of the network
+        # 3x3 convolution of the original residual path
+        self.conv_original = nn.Sequential(
+            nn.ReflectionPad2d(1),
+            nn.Conv2d(in_features, in_features, 3),
+            nn.InstanceNorm2d(in_features)
+        )
+
+    def forward(self, x):
+        # Original Res path
+        h_prev = self.conv_original(x)
+
+        # New path in the formula
+        Q = self.conv_Q(x)  # [B, C/4, H, W]
+        K = self.conv_K(x)  # [B, C/4, H, W]
+        V = self.conv_V(x)  # [B, C/4, H, W]
+
+        # Generate K^T (spatial dimension transpose)
+        K_T = K.permute(0, 1, 3, 2)  # [B, C/4, W, H]
+
+        # Concatenate Q, K, K^T
+        concat_KKT = torch.cat([K, K_T], dim=1)  # [B, C/2, H, W]
+        concat_Q_KKT = torch.cat([Q, concat_KKT], dim=1)  # [B, 3C/4, H, W]
+        adapted = self.conv_adapt(concat_Q_KKT)  # [B, C/4, H, W]
+        concat_V_adapted = torch.cat([V, adapted], dim=1)  # [B, C/2, H, W]
+
+        # Final 3x3 convolution
+        h_new = self.conv_final(concat_V_adapted)
+
+        # Return the sum of the original path and the new path
+        return x + h_prev + h_new  # Residual connection
 
 
 ##############################
@@ -93,52 +115,127 @@ class Generator(nn.Module):
 
         channels = input_shape[0]
         out_features = 64
-        model = [
+
+        # initial layer
+        self.initial = nn.Sequential(
             nn.ReflectionPad2d(channels),
             nn.Conv2d(channels, out_features, 7),
             nn.InstanceNorm2d(out_features),
             nn.ReLU(inplace=True),
-        ]
+        )
         in_features = out_features
 
-        # Downsampling part
-        for _ in range(3):
-            out_features *= 2
-            model += [
-                nn.Conv2d(in_features, out_features, 3, stride=2, padding=1),
-                nn.InstanceNorm2d(out_features),
-                nn.ReLU(inplace=True),
-                EfficientSelfAttention(out_features),  # Introduce self-attention mechanism
-            ]
-            in_features = out_features
+        # downsample part
+        self.down1 = nn.Sequential(
+            nn.Conv2d(in_features, out_features*2, 3, stride=2, padding=1),
+            nn.InstanceNorm2d(out_features*2),
+            nn.ReLU(inplace=True),
+            EfficientSelfAttention(out_features*2),
+        )
+        self.down2 = nn.Sequential(
+            nn.Conv2d(out_features*2, out_features*4, 3, stride=2, padding=1),
+            nn.InstanceNorm2d(out_features*4),
+            nn.ReLU(inplace=True),
+            EfficientSelfAttention(out_features*4),
+        )
+        self.down3 = nn.Sequential(
+            nn.Conv2d(out_features*4, out_features*8, 3, stride=2, padding=1),
+            nn.InstanceNorm2d(out_features*8),
+            nn.ReLU(inplace=True),
+            EfficientSelfAttention(out_features*8),
+        )
+        in_features = out_features * 8
 
-        # Residual blocks part
-        for _ in range(num_residual_blocks):
-            model += [ResidualBlock(out_features)]
+        # Resnet blocks
+        self.res_blocks = nn.Sequential(
+            *[ResidualBlock(in_features) for _ in range(num_residual_blocks)]
+        )
 
-        # Upsampling part
-        for _ in range(3):
-            out_features //= 2
-            model += [
-                nn.Upsample(scale_factor=2),
-                nn.Conv2d(in_features, out_features, 3, stride=1, padding=1),
-                nn.InstanceNorm2d(out_features),
-                nn.ReLU(inplace=True),
-                EfficientSelfAttention(out_features),  # Introduce self-attention mechanism
-            ]
-            in_features = out_features
+        # Up-sampling part (key modification point)
+        # ---------------------------
+        # Modification note: Add channel compression convolution after each upper sampling layer to process the feature map after concat
+        self.up1 = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(in_features, in_features//2, 3, padding=1),      # 512 -> 256
+            nn.InstanceNorm2d(in_features//2),
+            nn.ReLU(inplace=True),
+            EfficientSelfAttention(in_features//2),
+        )
+        # Added channel compression layer (feature after processing concat)
+        self.up1_conv = nn.Sequential(
+            nn.Conv2d(256 + 256, 256, 3, padding=1),  # deal with the concatenated 512 channels
+            nn.InstanceNorm2d(256),
+            nn.ReLU(inplace=True),
+        )
+
+        self.up2 = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(256, 128, 3, padding=1),        # 256 -> 128
+            nn.InstanceNorm2d(128),
+            nn.ReLU(inplace=True),
+            EfficientSelfAttention(128),
+        )
+        self.up2_conv = nn.Sequential(
+            nn.Conv2d(128 + 128, 128, 3, padding=1),  # deal with the concatenated 256 channels
+            nn.InstanceNorm2d(128),
+            nn.ReLU(inplace=True),
+        )
+
+        self.up3 = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 64, 3, padding=1),         # 128 -> 64
+            nn.InstanceNorm2d(64),
+            nn.ReLU(inplace=True),
+            EfficientSelfAttention(64),
+        )
+        self.up3_conv = nn.Sequential(
+            nn.Conv2d(64 + 64, 64, 3, padding=1),     # deal with the concatenated 128 channels
+            nn.InstanceNorm2d(64),
+            nn.ReLU(inplace=True),
+        )
+        # ---------------------------
 
         # Output layer
-        model += [
+        self.output = nn.Sequential(
             nn.ReflectionPad2d(channels),
-            nn.Conv2d(out_features, channels, 7),
+            nn.Conv2d(64, channels, 7),
             nn.Tanh(),
-        ]
-
-        self.model = nn.Sequential(*model)
+        )
 
     def forward(self, x):
-        return self.model(x)
+        # Initial layer
+        x_initial = self.initial(x)  # [B, 64, H, W]
+
+        # Downsample
+        d1 = self.down1(x_initial)   # [B, 128, H/2, W/2]
+        d2 = self.down2(d1)          # [B, 256, H/4, W/4]
+        d3 = self.down3(d2)          # [B, 512, H/8, W/8]
+
+        # Residual blocks
+        res = self.res_blocks(d3)    # [B, 512, H/8, W/8]
+
+        # Upsampling (key modification point)
+        # ---------------------------
+        # First level upsampling
+        u1 = self.up1(res)           # [B, 256, H/4, W/4]
+        u1 = torch.cat([u1, d2], dim=1)  #  [B, 256+256=512, H/4, W/4]
+        u1 = self.up1_conv(u1)       #  [B, 256, H/4, W/4]
+
+        # Second level upsampling
+        u2 = self.up2(u1)            # [B, 128, H/2, W/2]
+        u2 = torch.cat([u2, d1], dim=1)  #  [B, 128+128=256, H/2, W/2]
+        u2 = self.up2_conv(u2)       # [B, 128, H/2, W/2]
+
+        # Third level upsampling
+        u3 = self.up3(u2)            # [B, 64, H, W]
+        u3 = torch.cat([u3, x_initial], dim=1)  # [B, 64+64=128, H, W]
+        u3 = self.up3_conv(u3)       #  [B, 64, H, W]
+        # ---------------------------
+
+        # Output layer
+        output = self.output(u3)
+        return output
+
 
 ##############################
 #        Discriminator
