@@ -9,7 +9,7 @@
 
 
 ![image](https://github.com/Gdw040199/VariGAN/blob/main/image/1.png)
-![image](https://github.com/Gdw040199/VariGAN/blob/main/image/2.png)
+![image](https://github.com/Gdw040199/VariGAN/blob/main/image/2.jpg)
 # Configuration Procedure
 
 ## 1. Clone Project
@@ -40,8 +40,17 @@ Create an environment using Anaconda and pip to install the necessary libraries:
    - The test sets are named `tastA` and `tastB`
 2. Train directly, the same way as the previous step.
 
-## Using VariGAN Weight File After Training
+## 6. Using VariGAN Weight File After Training
 1. Find the path to the `testA` or `testB` image that you want to convert.
 2. Rename the weight file you want to use to `G_AB_4.pth` and `G_BA_4.pth`.
 3. Before running `test.py`, before that, you should change the root of the weight file.
 4. Run the `test.py` file for testing, and the generated converted image will be saved in the `results` directory.
+
+## 7. Evaluation
+1. The evaluation code is in the `evaluation` directory.
+2. For FCN evaluation, you can use the `Train_FCN.py` file to train a fcn model. Then, you can use the `evaluation_FCN_scores.py` file to test the model.
+3. Before you Do the training FCN, you should label the data set you want to train. The guidelines are this [link](https://github.com/wkentaro/labelme). 
+4. Then, you should change the root of the data set (ground truth) in the `Train_FCN.py` file. Then, you can train the FCN model.
+5. After training the FCN model, you can use the `evaluation_FCN_scores.py` file to test the model.
+6. The dataroot in the `evaluation_FCN_scores.py` file should be the root of the data set you want to test. 
+4. For other evaluation methods like FID, PSNR, SSIM, you can use the `score_others.py` file to test the generated images.
