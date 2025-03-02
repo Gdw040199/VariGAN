@@ -1,0 +1,77 @@
+{
+    "name": "FCN",
+    "n_gpu": 1,
+    "use_synch_bn": true,
+
+    "arch": {
+        "type": "DeepLab",
+        "args": {
+            "backbone": "resnet101",
+            "freeze_bn": false,
+            "freeze_backbone": false
+        }
+    },
+
+    "train_loader": {
+        "type": "MyVOC",
+        "args":{
+            "data_dir": "F:\\pycharm-project\\label\\dataset_voc",
+            "batch_size": 4,
+            "base_size": 718,
+            "crop_size": 718,
+            "augment": true,
+            "shuffle": true,
+            "scale": true,
+            "flip": true,
+            "rotate": true,
+            "blur": false,
+            "split": "train",
+            "num_workers": 0
+        }
+    },
+
+    "val_loader": {
+        "type": "MyVOC",
+        "args":{
+            "data_dir": "F:\\pycharm-project\\label\\dataset_voc",
+            "batch_size": 4,
+            "crop_size": 718,
+            "val": true,
+            "split": "val",
+            "num_workers": 0
+        }
+    },
+
+    "optimizer": {
+        "type": "SGD",
+        "differential_lr": true,
+        "args":{
+            "lr": 0.005,
+            "weight_decay": 1e-4,
+            "momentum": 0.99
+        }
+    },
+
+    "loss": "CrossEntropyLoss2d",
+    "ignore_index": 255,
+    "lr_scheduler": {
+        "type": "Poly",
+        "args": {}
+    },
+
+    "trainer": {
+        "epochs": 120,
+        "save_dir": "saved/",
+        "save_period": 10,
+
+        "monitor": "max Mean_IoU",
+        "early_stop": 20,
+
+        "tensorboard": true,
+        "log_dir": "saved/runs",
+        "log_per_iter": 10,
+
+        "val": true,
+        "val_per_epochs": 5
+    }
+}
