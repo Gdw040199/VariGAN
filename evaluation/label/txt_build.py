@@ -8,7 +8,6 @@ saveBasePath = r'dataset_voc/'
 # 设置数据集比例，其中trainval是指train+val
 train_percent = 0.8
 val_percent = 0.2
-#test_percent = 0.2                                   # 其实这个数字就用不到
 
 # 求出数据总的数目
 total_image = os.listdir(file_path)                  # 将文件名存为一个列表，这时是包含拓展名的
@@ -18,7 +17,6 @@ list = range(num)
 # 求出各部分的数目
 train_number = int(num * train_percent)
 val_number = int(num * val_percent)
-#test_number = int(num * test_percent)                # 这个数字也用不到其实
 trainval_number = int(train_number + val_number)
 
 # 各部分的样本
