@@ -57,7 +57,7 @@ Use **Anaconda** to create a virtual environment and install the necessary depen
 ### 5. Custom Training with Your Own Dataset
 1. **Dataset Naming Convention**:
    - Training sets: `trainA` and `trainB`
-   - Test sets: `tastA` and `tastB`
+   - Test sets: `testA` and `testB`
 2. Follow the same training procedure as described in the previous step.
 
 ---
