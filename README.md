@@ -100,8 +100,7 @@ Use **Anaconda** to create a virtual environment and install the necessary depen
      ```
 
 #### 7.2 Other Evaluation Methods
-1. For metrics such as **FID**, **PSNR**, and **SSIM**, use the `score_others.py` script to evaluate the generated images.
-2. To calculate model parameters, use the `test_para.py` script located in the `evaluation` directory.
+1. To calculate model parameters, use the `test_para.py` script located in the `evaluation` directory.
 
 ---
 
