@@ -67,8 +67,12 @@ def test():
     input_B = Tensor(opt.batchSize, opt.channels, opt.size, opt.size)
 
     '''Build the test dataset'''
+    """transforms_ = [transforms.Resize(256),
+                      transforms.CenterCrop(256),
+                      transforms.ToTensor()] # used in the input image is 600*600"""
+    
     transforms_ = [transforms.ToTensor(),
-                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))] # used in the input image is 256*256
     dataloader = DataLoader(ImageDataset(opt.dataroot, transforms_=transforms_, mode='test'),
                             batch_size=opt.batchSize, shuffle=False, num_workers=opt.n_cpu)
 
