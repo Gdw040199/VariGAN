@@ -23,7 +23,7 @@ class LabelmeParser:
         # read all polygons
         for shape in data['shapes']:
             points = np.array(shape['points'], dtype=np.int32)
-            # 转换多边形为掩膜
+            #  change  shape to masks
             shape_mask = utils.shape_to_mask(
                 (self.height, self.width),
                 points,
