@@ -114,4 +114,4 @@ if __name__ == "__main__":
     print(f"\nFinal Evaluation:")
     print(f"Pixel Accuracy: {metrics.pixel_accuracy():.4f}")
     print(f"Class Accuracy: {metrics.class_accuracy():.4f}")
-    print(f"Mean IoU: {metrics.class_iou():.4f}")
+    print(f"Class IoU: {metrics.class_iou():.4f}")
