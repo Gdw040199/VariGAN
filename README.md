@@ -73,7 +73,7 @@ Use **Anaconda** to create a virtual environment and install the necessary depen
 ### 7. Evaluation
 #### 7.1 FCN Evaluation
 1. Navigate to the `evaluation` directory and open the `label` folder. Follow these steps:
-   - **Step 1**: Edit the `dataset` folder under `label`. Place the images in the `imgs` folder and specify the classes you want to segment in the images.
+   - **Step 1**: Prepare the Train datasets and Test Datasets. Edit the `dataset` folder under `label`. Place the images in the `imgs` folder and specify the classes you want to segment in the images. For the folder `test`, you should also make the same folder named `dataset` and put the test imgs in it.
    - **Step 2**: Use the `labelme` library to annotate the images. Navigate to the `dataset` directory and run the following command:  
      ```bash
      labelme imgs --output jsons --nodata --autosave --labels labels.txt
